@@ -4,7 +4,7 @@ Thanks for helping make Hinder better! Bug reports, ideas and pull requests are 
 
 ## Reporting a bug or asking for a feature
 
-Open an [issue](https://github.com/yaasiinaxmed/Hinder-Desktop-App/issues) and include:
+Open an [issue](https://github.com/yaasiinaxmed/Hinder-Mac-App/issues) and include:
 
 - your macOS version and Mac type (Apple silicon or Intel)
 - the Hinder version (from the release you downloaded, or the commit you built)
@@ -18,8 +18,8 @@ Please don't include personal file names or paths you'd rather keep private.
 You need macOS and [Rust](https://rustup.rs) 1.85 or newer.
 
 ```sh
-git clone https://github.com/yaasiinaxmed/Hinder-Desktop-App.git
-cd Hinder-Desktop-App
+git clone https://github.com/yaasiinaxmed/Hinder-Mac-App.git
+cd Hinder-Mac-App
 cargo run
 ```
 

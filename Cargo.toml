@@ -6,7 +6,7 @@ rust-version = "1.85"
 description = "Hinder: an open-source, privacy-first Finder companion for macOS, written in Rust."
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/yaasiinaxmed/Hinder-Desktop-App"
+repository = "https://github.com/yaasiinaxmed/Hinder-Mac-App"
 keywords = ["macos", "finder", "file-manager", "egui", "search"]
 categories = ["filesystem", "gui"]
 
