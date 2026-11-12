@@ -33,6 +33,28 @@
 - **Private.** No account, no network, no uploads.
 - **Three looks.** Vivid (Hinder copper), Normal (plain macOS whites and greys) or Mono (black and white), each in Light, Dark or following macOS. Switch looks with <kbd>⌃⌘T</kbd>.
 
+## Looks
+
+Pick a look and an appearance from the top bar, or from **View → Look** and **View → Appearance**.
+
+<table>
+  <tr>
+    <th></th>
+    <th>Vivid</th>
+    <th>Normal</th>
+  </tr>
+  <tr>
+    <th>Dark</th>
+    <td><img src="assets/screenshots/vivid-dark.jpg" alt="Hinder in the Vivid look, dark: warm copper-brown sidebar and colourful tinted Library cards"></td>
+    <td><img src="assets/screenshots/normal-dark.jpg" alt="Hinder in the Normal look, dark: neutral grey sidebar and softly tinted Library cards"></td>
+  </tr>
+  <tr>
+    <th>Light</th>
+    <td><img src="assets/screenshots/vivid-light.jpg" alt="Hinder in the Vivid look, light: warm cream sidebar and pastel copper-toned Library cards"></td>
+    <td><img src="assets/screenshots/normal-light.jpg" alt="Hinder in the Normal look, light: plain white window with a light grey sidebar and pastel Library cards"></td>
+  </tr>
+</table>
+
 ## Download
 
 Get the latest `.dmg` from the **[Releases page](https://github.com/yaasiinaxmed/Hinder-Mac-App/releases/latest)**. It's a universal app for Apple silicon and Intel Macs.
