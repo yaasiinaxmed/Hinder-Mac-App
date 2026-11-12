@@ -6,7 +6,7 @@ use egui_phosphor::regular as ph;
 use super::widgets::*;
 use crate::cleanup::Card;
 use crate::model::{FileEntry, Kind, fmt_count, fmt_date, fmt_size};
-use crate::theme::{Look, Palette, f, fb, fm, mix};
+use crate::theme::{Palette, f, fb, fm, mix};
 use crate::thumbs::Thumbs;
 
 /// Lay out `n` equal cards in rows. Returns (columns, card width).
@@ -52,6 +52,12 @@ pub fn file_card(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, file: &FileEntry
 
     let slot = Palette::kind_slot(file.kind);
     match thumbs.get(&file.path) {
+        Some(t) if file.kind == Kind::App => {
+            // App icons already have their own shape: show them big, with no frame.
+            let side = (thumb.height() - 48.0).min(thumb.width() - 36.0).max(16.0);
+            let r = Rect::from_center_size(thumb.center() + vec2(0.0, 12.0), vec2(side, side));
+            image_contain(&painter, t, r, CornerRadius::ZERO);
+        }
         Some(t) => {
             let inner = Rect::from_min_max(thumb.min + vec2(18.0, 38.0), thumb.max - vec2(18.0, 14.0));
             let r = image_contain(&painter, t, inner, CornerRadius::same(5));
@@ -61,7 +67,7 @@ pub fn file_card(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, file: &FileEntry
             painter.text(thumb.center() + vec2(0.0, 10.0), Align2::CENTER_CENTER, file.kind.icon(), f(thumb.height() * 0.3), mix(p.thumb_bg, p.hue(slot), 0.6));
         }
     }
-    let dot = if p.look == Look::Vivid { p.hue(slot) } else { p.green };
+    let dot = if p.colorful() { p.hue(slot) } else { p.green };
     badge(&painter, p, thumb.min + vec2(10.0, 10.0), &badge_text(file), Some(dot));
 
     let name_font = fm(13.5);
@@ -72,7 +78,7 @@ pub fn file_card(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, file: &FileEntry
 }
 
 /// A file as a list row.
-pub fn file_row(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, file: &FileEntry, height: f32, selected: bool, odd: bool) -> Response {
+pub fn file_row(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, file: &FileEntry, height: f32, selected: bool, odd: bool, show_folder: bool) -> Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::click());
     if !ui.is_rect_visible(rect) {
         return resp;
@@ -96,31 +102,77 @@ pub fn file_row(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, file: &FileEntry,
             painter.text(t.center(), Align2::CENTER_CENTER, file.kind.icon(), f(15.0), p.hue(Palette::kind_slot(file.kind)));
         }
     }
-    let w = rect.width();
-    let cols = [w * 0.46, w * 0.14, w * 0.12];
+    let c = Columns::new(rect.left(), rect.width(), show_folder);
     let x0 = t.right() + 12.0;
-    let name = middle_truncate(ui, &file.name, &f(13.5), cols[0] - 50.0);
+    let name = middle_truncate(ui, &file.name, &f(13.5), c.kind - x0 - 16.0 - c.folder_w);
     painter.text(pos2(x0, rect.center().y), Align2::LEFT_CENTER, name, f(13.5), p.text);
-    let x1 = rect.left() + cols[0];
+    if show_folder {
+        let folder = file.path.parent().and_then(|d| d.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let folder = middle_truncate(ui, &format!("{}  {folder}", ph::FOLDER_SIMPLE), &f(12.5), c.folder_w - 16.0);
+        painter.text(pos2(c.kind - c.folder_w, rect.center().y), Align2::LEFT_CENTER, folder, f(12.5), p.muted);
+    }
+    let (x1, x2, x3) = (c.kind, c.size, c.date);
     painter.text(pos2(x1, rect.center().y), Align2::LEFT_CENTER, file.type_label(), f(12.5), p.muted);
-    let x2 = x1 + cols[1];
     painter.text(pos2(x2, rect.center().y), Align2::LEFT_CENTER, fmt_size(file.size), f(12.5), p.muted);
-    let x3 = x2 + cols[2];
     painter.text(pos2(x3, rect.center().y), Align2::LEFT_CENTER, fmt_date(file.modified), f(12.5), p.muted);
+    let resp = if show_folder { resp.on_hover_text(crate::model::tildify(file.path.parent().unwrap_or(&file.path))) } else { resp };
     resp
 }
 
-pub fn list_header(ui: &mut Ui, p: &Palette) {
+/// X positions of the list columns, shared by the header and the rows.
+struct Columns {
+    /// Width of the Folder column (0 when hidden). It sits just left of `kind`.
+    folder_w: f32,
+    kind: f32,
+    size: f32,
+    date: f32,
+}
+
+impl Columns {
+    fn new(left: f32, w: f32, show_folder: bool) -> Self {
+        let folder_w = if show_folder { w * 0.18 } else { 0.0 };
+        let kind = left + w * if show_folder { 0.56 } else { 0.46 };
+        let size = kind + w * if show_folder { 0.10 } else { 0.14 };
+        let date = size + w * if show_folder { 0.10 } else { 0.12 };
+        Self { folder_w, kind, size, date }
+    }
+}
+
+/// A sub folder tile at the top of a Location view.
+pub fn folder_tile(ui: &mut Ui, p: &Palette, folder: &crate::app::FolderSummary, size: Vec2) -> Response {
+    let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
+    if !ui.is_rect_visible(rect) {
+        return resp;
+    }
+    card_frame(ui, p, rect, &resp, false, p.surface, p.border, 12);
+    let painter = ui.painter_at(rect);
+    let ir = Rect::from_min_size(pos2(rect.left() + 12.0, rect.center().y - 16.0), vec2(32.0, 32.0));
+    let tint = p.folder;
+    painter.rect_filled(ir, CornerRadius::same(9), if p.colorful() { mix(p.surface, tint, 0.16) } else { p.thumb_bg });
+    painter.text(ir.center(), Align2::CENTER_CENTER, ph::FOLDER_SIMPLE, f(17.0), tint);
+    let x = ir.right() + 10.0;
+    let max_w = rect.right() - x - 26.0;
+    painter.text(pos2(x, rect.center().y - 9.0), Align2::LEFT_CENTER, middle_truncate(ui, &folder.name, &fm(13.5), max_w), fm(13.5), p.text);
+    let mut sub = format!("{} · {}", crate::model::plural(folder.count, "item", "items"), fmt_size(folder.bytes));
+    if let Some(w) = &folder.within {
+        sub = format!("{w} · {sub}");
+    }
+    painter.text(pos2(x, rect.center().y + 9.0), Align2::LEFT_CENTER, sub, f(12.0), p.muted);
+    painter.text(pos2(rect.right() - 12.0, rect.center().y), Align2::RIGHT_CENTER, ph::CARET_RIGHT, f(13.0), if resp.hovered() { p.text } else { p.faint });
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+pub fn list_header(ui: &mut Ui, p: &Palette, show_folder: bool) {
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
-    let w = rect.width();
+    let c = Columns::new(rect.left(), rect.width(), show_folder);
     let y = rect.center().y;
     let font = fm(11.5);
     let x0 = rect.left() + 50.0;
-    let x1 = rect.left() + w * 0.46;
-    let x2 = x1 + w * 0.14;
-    let x3 = x2 + w * 0.12;
-    for (x, t) in [(x0, "Name"), (x1, "Kind"), (x2, "Size"), (x3, "Date Modified")] {
+    for (x, t) in [(x0, "Name"), (c.kind, "Kind"), (c.size, "Size"), (c.date, "Date Modified")] {
         ui.painter().text(pos2(x, y), Align2::LEFT_CENTER, t, font.clone(), p.faint);
+    }
+    if show_folder {
+        ui.painter().text(pos2(c.kind - c.folder_w, y), Align2::LEFT_CENTER, "Folder", font.clone(), p.faint);
     }
     ui.painter().line_segment([pos2(rect.left(), rect.bottom()), pos2(rect.right(), rect.bottom())], p.hairline());
 }
@@ -132,7 +184,7 @@ pub fn shelf_card(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, kind: Kind, cou
         return resp;
     }
     let slot = Palette::kind_slot(kind);
-    let fill = if p.look == Look::Vivid { p.tint(slot) } else { p.surface };
+    let fill = if p.colorful() { p.tint(slot) } else { p.surface };
     card_frame(ui, p, rect, &resp, false, fill, p.tint_border(slot), 18);
     let painter = ui.painter_at(rect);
     let stage = Rect::from_min_max(rect.min, pos2(rect.right(), rect.bottom() - 64.0));
@@ -150,8 +202,8 @@ pub fn shelf_card(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, kind: Kind, cou
 
     let base = pos2(rect.left() + 18.0, rect.bottom() - 46.0);
     let (ir, _) = (Rect::from_min_size(base, vec2(26.0, 26.0)), ());
-    painter.rect_filled(ir, CornerRadius::same(8), if p.look == Look::Vivid { mix(p.surface, tint, 0.18) } else { p.thumb_bg });
-    painter.text(ir.center(), Align2::CENTER_CENTER, kind.icon(), f(15.0), if p.look == Look::Vivid { tint } else { p.text });
+    painter.rect_filled(ir, CornerRadius::same(8), if p.colorful() { mix(p.surface, tint, 0.18) } else { p.thumb_bg });
+    painter.text(ir.center(), Align2::CENTER_CENTER, kind.icon(), f(15.0), if p.colorful() { tint } else { p.text });
     painter.text(pos2(ir.right() + 10.0, ir.top() - 1.0), Align2::LEFT_TOP, kind.label(), fm(15.0), p.text);
     painter.text(pos2(ir.right() + 10.0, ir.top() + 18.0), Align2::LEFT_TOP, format!("{} items · {}", fmt_count(count), fmt_size(bytes)), f(12.0), p.muted);
     painter.text(pos2(rect.right() - 18.0, ir.center().y), Align2::RIGHT_CENTER, ph::ARROW_RIGHT, f(15.0), if resp.hovered() { p.text } else { p.faint });
@@ -166,14 +218,14 @@ pub fn cleanup_card(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, card: &Card, 
     }
     let slot = card.kind.tint_index();
     let empty = card.paths.is_empty();
-    let fill = if p.look == Look::Vivid && !empty { p.tint(slot) } else { p.surface };
+    let fill = if p.colorful() && !empty { p.tint(slot) } else { p.surface };
     card_frame(ui, p, rect, &resp, false, fill, if empty { p.border } else { p.tint_border(slot) }, 16);
     let painter = ui.painter_at(rect);
     let hue = p.hue(slot);
     let pad = 16.0;
     let ir = Rect::from_min_size(rect.min + vec2(pad, pad), vec2(34.0, 34.0));
-    painter.rect_filled(ir, CornerRadius::same(10), if p.look == Look::Vivid { mix(p.surface, hue, 0.2) } else { p.thumb_bg });
-    painter.text(ir.center(), Align2::CENTER_CENTER, card.kind.icon(), f(17.0), if p.look == Look::Vivid { hue } else { p.text });
+    painter.rect_filled(ir, CornerRadius::same(10), if p.colorful() { mix(p.surface, hue, 0.2) } else { p.thumb_bg });
+    painter.text(ir.center(), Align2::CENTER_CENTER, card.kind.icon(), f(17.0), if p.colorful() { hue } else { p.text });
 
     // little stack of samples
     for (i, path) in card.paths.iter().take(3).enumerate().collect::<Vec<_>>().into_iter().rev() {
@@ -190,11 +242,11 @@ pub fn cleanup_card(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, card: &Card, 
     }
     // share-of-total bar
     let bar = Rect::from_min_size(pos2(rect.left() + pad, rect.bottom() - pad - 4.0), vec2(rect.width() - pad * 2.0, 4.0));
-    painter.rect_filled(bar, CornerRadius::same(2), if p.look == Look::Vivid { mix(p.surface, hue, 0.18) } else { p.thumb_bg });
+    painter.rect_filled(bar, CornerRadius::same(2), if p.colorful() { mix(p.surface, hue, 0.18) } else { p.thumb_bg });
     if share > 0.0 {
         let mut fillr = bar;
         fillr.set_width((bar.width() * share.clamp(0.0, 1.0)).max(4.0));
-        painter.rect_filled(fillr, CornerRadius::same(2), if p.look == Look::Vivid { hue } else { p.text });
+        painter.rect_filled(fillr, CornerRadius::same(2), if p.colorful() { hue } else { p.text });
     }
     resp.on_hover_text(card.kind.explain()).on_hover_cursor(egui::CursorIcon::PointingHand)
 }
@@ -210,8 +262,8 @@ pub fn source_card(ui: &mut Ui, p: &Palette, thumbs: &mut Thumbs, s: &crate::app
     let slot = s.key.bytes().fold(0usize, |a, b| a.wrapping_mul(31).wrapping_add(b as usize));
     let hue = p.hue(slot);
     let c = pos2(rect.left() + 34.0, rect.center().y);
-    painter.circle_filled(c, 18.0, if p.look == Look::Vivid { mix(p.surface, hue, 0.16) } else { p.thumb_bg });
-    painter.text(c, Align2::CENTER_CENTER, crate::sources::icon_for(&s.key), f(18.0), if p.look == Look::Vivid { hue } else { p.text });
+    painter.circle_filled(c, 18.0, if p.colorful() { mix(p.surface, hue, 0.16) } else { p.thumb_bg });
+    painter.text(c, Align2::CENTER_CENTER, crate::sources::icon_for(&s.key), f(18.0), if p.colorful() { hue } else { p.text });
 
     let thumbs_w = if s.samples.is_empty() { 0.0 } else { 30.0 + 20.0 * (s.samples.len().min(2) as f32 - 1.0) + 8.0 };
     let tx = c.x + 30.0;

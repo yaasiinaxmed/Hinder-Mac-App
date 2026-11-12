@@ -1,11 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Copper folder app icon with a smiling face on a dark background">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Hinder logo">
+<!-- Same artwork as assets/icon.svg, edge to edge, for drawing inside the app. -->
 <defs>
 <clipPath id="squircle">
-<rect width="512" height="512" rx="112"/>
+<rect width="512" height="512" rx="114"/>
 </clipPath>
 <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-<stop offset="0" stop-color="#3B2219"/>
-<stop offset="1" stop-color="#140B08"/>
+<stop offset="0" stop-color="#4A2B1F"/>
+<stop offset="1" stop-color="#1A0E0A"/>
 </linearGradient>
 <radialGradient id="glow" cx="0.5" cy="0.62" r="0.5">
 <stop offset="0" stop-color="#E8692F" stop-opacity="0.45"/>
@@ -23,10 +24,20 @@
 <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.45"/>
 <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
 </linearGradient>
+<linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/>
+<stop offset="0.35" stop-color="#FFFFFF" stop-opacity="0.35"/>
+<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.22"/>
+</linearGradient>
+<linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/>
+<stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+</linearGradient>
 </defs>
 <g clip-path="url(#squircle)">
 <rect width="512" height="512" fill="url(#bg)"/>
 <rect width="512" height="512" fill="url(#glow)"/>
+<rect width="512" height="230" fill="url(#gloss)"/>
 <path d="M120 170 q0 -20 20 -20 h70 q14 0 22 11 l12 16 h128 q20 0 20 20 v172 q0 20 -20 20 h-252 q-20 0 -20 -20 z" fill="url(#back)"/>
 <rect x="150" y="186" width="212" height="120" rx="10" fill="#F6E3D3" transform="rotate(-4 256 246)"/>
 <rect x="112" y="216" width="288" height="176" rx="28" fill="url(#front)"/>
@@ -42,4 +53,6 @@
 <path d="M196 330 c10 -16 22 -16 30 -3 c10 15 30 15 46 -6"/>
 </g>
 </g>
+<rect x="3" y="3" width="506" height="506" rx="111" fill="none" stroke="url(#rim)" stroke-width="6"/>
+<rect x="9" y="9" width="494" height="494" rx="105" fill="none" stroke="#000000" stroke-opacity="0.25" stroke-width="2"/>
 </svg>

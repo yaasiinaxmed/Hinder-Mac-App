@@ -189,8 +189,12 @@ fn sidebar(app: &mut HinderApp, ctx: &egui::Context, acts: &mut Vec<Act>) {
             });
             ui.add_space(14.0);
 
-            let icon_c = |slot: usize| if p.look == Look::Vivid { p.hue(slot) } else { p.muted };
-            ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            let icon_c = |slot: usize| if p.colorful() { p.hue(slot) } else { p.muted };
+            // Scrolls with the trackpad, but never shows a bar (like Finder's sidebar).
+            ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+                .show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 2.0;
                 if nav_item(ui, &p, ph::HOUSE, p.muted, "Home", Trail::None, app.view == View::Home).clicked() {
                     acts.push(Act::Go(View::Home));
@@ -201,7 +205,7 @@ fn sidebar(app: &mut HinderApp, ctx: &egui::Context, acts: &mut Vec<Act>) {
                 for k in Kind::SHELVES {
                     let n = app.stats.get(&k).map(|s| s.0).unwrap_or(0);
                     let col = icon_c(Palette::kind_slot(k));
-                    if nav_item(ui, &p, k.icon(), col, k.label(), Trail::Muted(fmt_count(n)), app.view == View::Kind(k)).clicked() {
+                    if nav_item(ui, &p, k.icon(), col, k.label(), Trail::Muted(fmt_count(n)), *app.base_view() == View::Kind(k)).clicked() {
                         acts.push(Act::Go(View::Kind(k)));
                     }
                 }
@@ -209,10 +213,10 @@ fn sidebar(app: &mut HinderApp, ctx: &egui::Context, acts: &mut Vec<Act>) {
 
                 let large = app.large_count();
                 let large_trail = if large > 0 { Trail::Pill(large.to_string(), p.accent, p.on_accent) } else { Trail::Muted("0".into()) };
-                if nav_item(ui, &p, ph::HARD_DRIVES, p.muted, "Large Files", large_trail, app.view == View::LargeFiles).clicked() {
+                if nav_item(ui, &p, ph::HARD_DRIVES, p.muted, "Large Files", large_trail, *app.base_view() == View::LargeFiles).clicked() {
                     acts.push(Act::Go(View::LargeFiles));
                 }
-                if nav_item(ui, &p, ph::SCAN, p.muted, "Screenshots", Trail::Muted(fmt_count(app.screenshot_count())), app.view == View::Screenshots).clicked() {
+                if nav_item(ui, &p, ph::SCAN, p.muted, "Screenshots", Trail::Muted(fmt_count(app.screenshot_count())), *app.base_view() == View::Screenshots).clicked() {
                     acts.push(Act::Go(View::Screenshots));
                 }
                 let dup_trail = if !app.dups_ready {
@@ -225,18 +229,18 @@ fn sidebar(app: &mut HinderApp, ctx: &egui::Context, acts: &mut Vec<Act>) {
                     acts.push(Act::Go(View::Duplicates));
                 }
                 let total = app.cleanup_total();
-                let clean_col = if p.look == Look::Vivid { p.green } else { p.text };
+                let clean_col = if p.colorful() { p.green } else { p.text };
                 if nav_item(ui, &p, ph::SPARKLE, p.muted, "Clean Up", Trail::Strong(fmt_size(total), clean_col), matches!(app.view, View::CleanUp | View::Review(_))).clicked() {
                     acts.push(Act::Go(View::CleanUp));
                 }
-                if nav_item(ui, &p, ph::DOWNLOAD_SIMPLE, p.muted, "Downloaded From", Trail::Muted(fmt_count(app.sources.len())), matches!(app.view, View::Sources | View::Source(_))).clicked() {
+                if nav_item(ui, &p, ph::DOWNLOAD_SIMPLE, p.muted, "Downloaded From", Trail::Muted(fmt_count(app.sources.len())), matches!(app.base_view(), View::Sources | View::Source(_))).clicked() {
                     acts.push(Act::Go(View::Sources));
                 }
                 divider(ui, &p);
 
                 group_label(ui, &p, "Locations");
                 let home = home_dir();
-                let folder_icon_col = if p.look == Look::Vivid { p.hue(1) } else { p.muted };
+                let folder_icon_col = if p.colorful() { p.hue(1) } else { p.muted };
                 let mut locs = vec![(ph::HOUSE_LINE, home.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or("Home".into()), home.clone())];
                 for d in ["Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"] {
                     let path = home.join(d);
@@ -347,6 +351,8 @@ fn topbar(app: &mut HinderApp, ctx: &egui::Context, now: f64) {
                     }
                     ui.add_space(8.0);
                     look_toggle(app, ui);
+                    ui.add_space(4.0);
+                    appearance_button(app, ui);
                     ui.add_space(12.0);
                     if ui.available_width() > 150.0 {
                         ui.label(RichText::new(fmt_size(app.lib.total_size())).font(fm(13.0)).color(p.text));
@@ -404,14 +410,20 @@ fn search_box(app: &mut HinderApp, ui: &mut Ui, now: f64) {
 
 fn look_toggle(app: &mut HinderApp, ui: &mut Ui) {
     let p = app.p;
-    // A fixed-size pill (two 30×26 segments + 3px padding). Painting it by hand
+    // A fixed-size pill (three 30×26 segments + 3px padding). Painting it by hand
     // keeps the background from stretching across the free space in the
     // right-to-left top-bar layout.
     const SEG: egui::Vec2 = vec2(30.0, 26.0);
     const PAD: f32 = 3.0;
-    let (pill, _) = ui.allocate_exact_size(vec2(SEG.x * 2.0 + PAD * 2.0, SEG.y + PAD * 2.0), Sense::hover());
+    let looks = [
+        (Look::Vivid, ph::PALETTE, "Vivid look: Hinder copper  ⌃⌘T"),
+        (Look::Normal, ph::SUN_HORIZON, "Normal look: plain macOS greys  ⌃⌘T"),
+        (Look::Mono, ph::CIRCLE_HALF, "Mono look: black and white  ⌃⌘T"),
+    ];
+    let n = looks.len() as f32;
+    let (pill, _) = ui.allocate_exact_size(vec2(SEG.x * n + PAD * 2.0, SEG.y + PAD * 2.0), Sense::hover());
     ui.painter().rect_filled(pill, CornerRadius::same(10), p.thumb_bg);
-    for (i, (look, icon, tip)) in [(Look::Vivid, ph::PALETTE, "Vivid look  ⌃⌘T"), (Look::Mono, ph::CIRCLE_HALF, "Mono look  ⌃⌘T")].into_iter().enumerate() {
+    for (i, (look, icon, tip)) in looks.into_iter().enumerate() {
         let r = egui::Rect::from_min_size(pill.min + vec2(PAD + SEG.x * i as f32, PAD), SEG);
         let resp = ui.interact(r, Id::new(("look-toggle", i)), Sense::click());
         let active = app.prefs.look == look;
@@ -423,6 +435,19 @@ fn look_toggle(app: &mut HinderApp, ui: &mut Ui) {
         if resp.on_hover_text(tip).clicked() {
             app.prefs.look = look;
         }
+    }
+}
+
+/// Light / Dark / follow macOS, cycled by one button.
+fn appearance_button(app: &mut HinderApp, ui: &mut Ui) {
+    let p = app.p;
+    let (icon, tip) = match app.prefs.appearance {
+        crate::theme::Appearance::System => (ph::CIRCLE_HALF_TILT, "Appearance: follows macOS (click for Light)"),
+        crate::theme::Appearance::Light => (ph::SUN, "Appearance: Light (click for Dark)"),
+        crate::theme::Appearance::Dark => (ph::MOON, "Appearance: Dark (click to follow macOS)"),
+    };
+    if icon_button(ui, &p, icon, false, tip).clicked() {
+        app.prefs.appearance = app.prefs.appearance.next();
     }
 }
 

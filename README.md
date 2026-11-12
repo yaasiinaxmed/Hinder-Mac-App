@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yaasiinaxmed/Hinder-Desktop-App/actions/workflows/ci.yml"><img src="https://github.com/yaasiinaxmed/Hinder-Desktop-App/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/yaasiinaxmed/Hinder-Desktop-App/releases/latest"><img src="https://img.shields.io/github/v/release/yaasiinaxmed/Hinder-Desktop-App?label=download" alt="Latest release"></a>
+  <a href="https://github.com/yaasiinaxmed/Hinder-Mac-App/actions/workflows/ci.yml"><img src="https://github.com/yaasiinaxmed/Hinder-Mac-App/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/yaasiinaxmed/Hinder-Mac-App/releases/latest"><img src="https://img.shields.io/github/v/release/yaasiinaxmed/Hinder-Mac-App?label=download" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
 </p>
@@ -20,18 +20,18 @@
 
 ## Features
 
-- **Library shelves.** Images, Videos, Music, Documents, Archives and Apps, each with big thumbnails.
+- **Library shelves.** Images, Videos, Music, Documents, Archives and Apps, with big thumbnails and real app icons. Browse them folder by folder, or see every file at once.
 - **Plain-English search.** Type `pdfs from last week over 5 mb` and Hinder shows how it understood you as filter chips you can change or remove.
 - **Downloaded From.** Every download grouped by where it came from (Gmail, Slack, GitHub, any website), read from the metadata macOS already stores.
 - **Duplicates.** Identical files found by content (SHA-256), with the space you'd get back.
 - **Clean Up.** Suggestions for old installers, forgotten downloads, old screenshots, big old videos and unused apps.
 - **Safe by default.** Nothing is ever deleted outright. Files go to the Trash so you can put them back.
 - **Private.** No account, no network, no uploads.
-- **Two looks.** Colourful or black-and-white. Switch with <kbd>⌃⌘T</kbd>.
+- **Three looks.** Vivid (Hinder copper), Normal (plain macOS whites and greys) or Mono (black and white), each in Light, Dark or following macOS. Switch looks with <kbd>⌃⌘T</kbd>.
 
 ## Download
 
-Get the latest `.dmg` from the **[Releases page](https://github.com/yaasiinaxmed/Hinder-Desktop-App/releases/latest)**. It's a universal app for Apple silicon and Intel Macs.
+Get the latest `.dmg` from the **[Releases page](https://github.com/yaasiinaxmed/Hinder-Mac-App/releases/latest)**. It's a universal app for Apple silicon and Intel Macs.
 
 ### Opening the app
 
@@ -64,8 +64,8 @@ Hinder isn't notarized by Apple yet, so the first time you open it macOS will sa
 You need macOS and [Rust](https://rustup.rs) 1.85 or newer.
 
 ```sh
-git clone https://github.com/yaasiinaxmed/Hinder-Desktop-App.git
-cd Hinder-Desktop-App
+git clone https://github.com/yaasiinaxmed/Hinder-Mac-App.git
+cd Hinder-Mac-App
 
 cargo run                        # run in development
 cargo test                       # run the tests

@@ -23,6 +23,9 @@ pub enum View {
     Home,
     Recents,
     Kind(Kind),
+    /// A page (a Library shelf, Large Files, Screenshots, a download source…)
+    /// narrowed to one folder, browsed folder by folder.
+    Inside(Box<View>, PathBuf),
     LargeFiles,
     Screenshots,
     Duplicates,
@@ -67,12 +70,29 @@ pub struct Prefs {
     pub inspector: bool,
     pub sidebar: bool,
     pub sort: Sort,
+    /// Library shelves browse folder by folder (true) or list every file (false).
+    pub kind_folders: bool,
+    pub appearance: theme::Appearance,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Self { look: Look::Vivid, grid: true, zoom: 1.0, pinned: Vec::new(), inspector: false, sidebar: true, sort: Sort::Modified }
+        Self { look: Look::Vivid, grid: true, zoom: 1.0, pinned: Vec::new(), inspector: false, sidebar: true, sort: Sort::Modified, kind_folders: true, appearance: theme::Appearance::System }
     }
+}
+
+/// What a cached folder summary was computed for: (parent, page, scan generation, sort).
+type FolderKey = (Option<PathBuf>, Option<View>, u64, Sort);
+
+/// A sub folder shown at the top of a Location view.
+#[derive(Clone, Debug)]
+pub struct FolderSummary {
+    pub path: PathBuf,
+    pub name: String,
+    pub count: usize,
+    pub bytes: u64,
+    /// Which main folder it lives in, shown when folders from several are mixed.
+    pub within: Option<String>,
 }
 
 pub struct SourceSummary {
@@ -93,6 +113,7 @@ pub struct HinderApp {
     pub prefs: Prefs,
     pub lib: Library,
     pub generation: u64,
+    folder_cache: Option<(FolderKey, Vec<FolderSummary>)>,
     pub scanning: bool,
     pub scan_progress: usize,
     scan_rx: Receiver<ScanMsg>,
@@ -152,6 +173,7 @@ impl HinderApp {
             prefs,
             lib: Library::default(),
             generation: 0,
+            folder_cache: None,
             scanning: true,
             scan_progress: 0,
             scan_rx: rx,
@@ -328,10 +350,131 @@ impl HinderApp {
         self.screenshot_count
     }
 
+    /// The page the current view belongs to: `Inside(Kind(Documents), dir)` → `Kind(Documents)`.
+    pub fn base_view(&self) -> &View {
+        match &self.view {
+            View::Inside(b, _) => b,
+            v => v,
+        }
+    }
+
+    /// Pages that can be browsed folder by folder. Recents stays a date-ordered
+    /// list and Apps a single A–Z grid, like Finder's Applications.
+    pub fn can_browse(view: &View) -> bool {
+        match view {
+            View::Kind(k) => *k != Kind::App,
+            View::LargeFiles | View::Screenshots | View::Source(_) => true,
+            _ => false,
+        }
+    }
+
+    /// The sort actually used: Apps default to A–Z and Large Files to biggest first.
+    pub fn effective_sort(&self) -> Sort {
+        match (self.base_view(), self.prefs.sort) {
+            (View::LargeFiles, Sort::Modified) => Sort::Size,
+            (View::Kind(Kind::App), Sort::Modified) => Sort::Name,
+            (_, s) => s,
+        }
+    }
+
+    /// The folders a page's first screen groups by: the main folders plus Applications.
+    fn top_parents() -> Vec<PathBuf> {
+        let mut v = scanner::roots();
+        for p in [PathBuf::from("/Applications"), crate::model::home_dir().join("Applications")] {
+            if p.is_dir() {
+                v.push(p);
+            }
+        }
+        v
+    }
+
+    /// Whether a file belongs on a page, ignoring which folder is open.
+    fn in_page(view: &View, f: &FileEntry, now: i64) -> bool {
+        match view {
+            View::Recents => f.kind != Kind::App && now - f.date() <= 30 * DAY,
+            View::Kind(k) => f.kind == *k,
+            View::LargeFiles => f.size >= LARGE_FILE && f.kind != Kind::App,
+            View::Screenshots => f.is_screenshot,
+            View::Source(key) => f.source.as_ref().is_some_and(|s| &s.key == key),
+            _ => true,
+        }
+    }
+
+    /// Whether the current view browses folder by folder (sub folders first,
+    /// then only the files directly inside) rather than listing everything.
+    pub fn browsing_folders(&self) -> bool {
+        if !self.filters.is_empty() {
+            return false; // a filter searches the whole tree
+        }
+        match &self.view {
+            View::Folder(_) => true,
+            _ => self.prefs.kind_folders && Self::can_browse(self.base_view()),
+        }
+    }
+
+    /// Folders to show at the top of the current view, with their file count and size.
+    pub fn view_folders(&mut self) -> Vec<FolderSummary> {
+        if !self.browsing_folders() {
+            return Vec::new();
+        }
+        match self.view.clone() {
+            View::Folder(dir) => self.subfolders(Some(&dir), None),
+            View::Inside(page, dir) => self.subfolders(Some(&dir), Some(*page)),
+            page => self.subfolders(None, Some(page)),
+        }
+    }
+
+    /// Sub folders of `dir` that contain indexed files, optionally only counting
+    /// files that belong on `page`. With `dir = None`, the sub folders of every
+    /// main folder (Desktop, Documents, Downloads…, Applications) are combined, so
+    /// the first screen shows real folders instead of one tile per main folder.
+    /// Derived from the index (no disk access) and cached.
+    pub fn subfolders(&mut self, dir: Option<&std::path::Path>, page: Option<View>) -> Vec<FolderSummary> {
+        let key: FolderKey = (dir.map(|d| d.to_path_buf()), page.clone(), self.generation, self.prefs.sort);
+        if let Some((k, v)) = &self.folder_cache {
+            if *k == key {
+                return v.clone();
+            }
+        }
+        let parents: Vec<PathBuf> = match dir {
+            Some(d) => vec![d.to_path_buf()],
+            None => Self::top_parents(),
+        };
+        let now = now_secs();
+        let mut map: std::collections::BTreeMap<PathBuf, (usize, u64)> = std::collections::BTreeMap::new();
+        for f in self.lib.files.iter().filter(|f| page.as_ref().is_none_or(|pg| Self::in_page(pg, f, now))) {
+            let Some((parent, rest)) = parents.iter().find_map(|p| f.path.strip_prefix(p).ok().map(|r| (p, r))) else { continue };
+            let mut comps = rest.components();
+            let (Some(first), Some(_)) = (comps.next(), comps.next()) else { continue };
+            let e = map.entry(parent.join(first)).or_default();
+            e.0 += 1;
+            e.1 += f.size;
+        }
+        let mut v: Vec<FolderSummary> = map
+            .into_iter()
+            .map(|(path, (count, bytes))| FolderSummary {
+                name: path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+                within: dir.is_none().then(|| path.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned())).flatten(),
+                path,
+                count,
+                bytes,
+            })
+            .collect();
+        if v.windows(2).all(|w| w[0].within == w[1].within) {
+            v.iter_mut().for_each(|f| f.within = None); // all from one main folder: no need to say so
+        }
+        match self.prefs.sort {
+            Sort::Size => v.sort_by_key(|s| std::cmp::Reverse(s.bytes)),
+            _ => v.sort_by_cached_key(|s| s.name.to_lowercase()),
+        }
+        self.folder_cache = Some((key, v.clone()));
+        v
+    }
+
     /// The list of files for the current list-style view, filtered and sorted.
     pub fn visible(&mut self) -> Vec<usize> {
         let mut h = std::collections::hash_map::DefaultHasher::new();
-        format!("{:?}|{:?}|{:?}", self.view, self.filters, self.prefs.sort).hash(&mut h);
+        format!("{:?}|{:?}|{:?}|{}", self.view, self.filters, self.prefs.sort, self.prefs.kind_folders).hash(&mut h);
         self.generation.hash(&mut h);
         self.content_hits.as_ref().map(|c| c.len()).hash(&mut h);
         let key = h.finish();
@@ -341,15 +484,20 @@ impl HinderApp {
             }
         }
         let now = now_secs();
+        let browsing = self.browsing_folders();
+        let tops = Self::top_parents();
         let base = |f: &FileEntry| -> bool {
+            let parent = f.path.parent();
             match &self.view {
-                View::Recents => f.kind != Kind::App && now - f.date() <= 30 * DAY,
-                View::Kind(k) => f.kind == *k,
-                View::LargeFiles => f.size >= LARGE_FILE && f.kind != Kind::App,
-                View::Screenshots => f.is_screenshot,
-                View::Source(key) => f.source.as_ref().is_some_and(|s| &s.key == key),
+                // Like Finder: only what's directly inside. With a filter set,
+                // search the whole folder tree instead.
+                View::Folder(p) if browsing => parent == Some(p.as_path()),
                 View::Folder(p) => f.path.starts_with(p),
-                _ => true,
+                View::Inside(page, p) if browsing => Self::in_page(page, f, now) && parent == Some(p.as_path()),
+                View::Inside(page, p) => Self::in_page(page, f, now) && f.path.starts_with(p),
+                // First screen of a page: files lying loose in Desktop, Documents, Downloads…
+                page if browsing => Self::in_page(page, f, now) && parent.is_some_and(|d| tops.iter().any(|t| t == d)),
+                page => Self::in_page(page, f, now),
             }
         };
         let hits = self.content_hits.as_ref();
@@ -362,7 +510,7 @@ impl HinderApp {
             .map(|(i, _)| i)
             .collect();
         let files = &self.lib.files;
-        let sort = if self.view == View::LargeFiles && self.prefs.sort == Sort::Modified { Sort::Size } else { self.prefs.sort };
+        let sort = self.effective_sort();
         match sort {
             Sort::Name => idx.sort_by_cached_key(|&i| files[i].name.to_lowercase()),
             Sort::Modified => idx.sort_by_key(|&i| std::cmp::Reverse(files[i].modified)),
@@ -500,7 +648,7 @@ impl HinderApp {
                 self.go(View::Home);
             }
             if i.consume_key(ctrl_cmd, Key::T) {
-                self.prefs.look = if self.prefs.look == Look::Vivid { Look::Mono } else { Look::Vivid };
+                self.prefs.look = self.prefs.look.next();
             }
             if i.consume_key(cmd, Key::Num1) {
                 self.prefs.grid = true;
@@ -599,12 +747,15 @@ impl eframe::App for HinderApp {
         }
         self.poll_content_search(ctx, now);
 
-        // Theme follows the system appearance; look follows prefs.
-        let dark = ctx.style().visuals.dark_mode;
-        let dark = match ctx.system_theme() {
-            Some(egui::Theme::Dark) => true,
-            Some(egui::Theme::Light) => false,
-            None => dark,
+        // Light/dark follows macOS unless forced in prefs; look follows prefs.
+        let dark = match self.prefs.appearance {
+            theme::Appearance::Light => false,
+            theme::Appearance::Dark => true,
+            theme::Appearance::System => match ctx.system_theme() {
+                Some(egui::Theme::Dark) => true,
+                Some(egui::Theme::Light) => false,
+                None => ctx.style().visuals.dark_mode,
+            },
         };
         if self.p.dark != dark || self.p.look != self.prefs.look {
             self.p = Palette::new(self.prefs.look, dark);

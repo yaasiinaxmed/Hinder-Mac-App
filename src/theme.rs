@@ -1,4 +1,4 @@
-//! Hinder's design system: two looks (Vivid, Mono) × light/dark, plus fonts.
+//! Hinder's design system: three looks (Vivid, Normal, Mono) × light/dark, plus fonts.
 
 use std::sync::Arc;
 
@@ -6,9 +6,52 @@ use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, FontId,
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, Default)]
 pub enum Look {
+    /// Hinder's copper brand colours.
     #[default]
     Vivid,
+    /// Neutral macOS-style whites and greys with a blue accent.
+    Normal,
+    /// Black, white and grey only.
     Mono,
+}
+
+impl Look {
+    pub const ALL: [Look; 3] = [Look::Vivid, Look::Normal, Look::Mono];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Look::Vivid => "Vivid",
+            Look::Normal => "Normal",
+            Look::Mono => "Mono",
+        }
+    }
+
+    pub fn next(self) -> Look {
+        match self {
+            Look::Vivid => Look::Normal,
+            Look::Normal => Look::Mono,
+            Look::Mono => Look::Vivid,
+        }
+    }
+}
+
+/// Light or dark: follow macOS, or force one.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, Default)]
+pub enum Appearance {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl Appearance {
+    pub fn next(self) -> Appearance {
+        match self {
+            Appearance::System => Appearance::Light,
+            Appearance::Light => Appearance::Dark,
+            Appearance::Dark => Appearance::System,
+        }
+    }
 }
 
 /// Every color the UI paints comes from here.
@@ -29,6 +72,8 @@ pub struct Palette {
     pub thumb_bg: Color32,
     pub accent: Color32,
     pub on_accent: Color32,
+    /// Folder icons.
+    pub folder: Color32,
     pub green: Color32,
     pub red: Color32,
     pub shadow: Color32,
@@ -38,6 +83,16 @@ pub struct Palette {
 pub const COPPER: Color32 = Color32::from_rgb(0xE0, 0x5E, 0x2E); // between #E8692F glow and #CE4A26 folder
 pub const COPPER_DEEP: Color32 = Color32::from_rgb(0xC2, 0x52, 0x2F); // folder back
 pub const COPPER_LIGHT: Color32 = Color32::from_rgb(0xF0, 0xA2, 0x74); // folder front highlight
+
+/// macOS system colours, for the Normal look.
+const SYS_HUES: [Color32; 6] = [
+    Color32::from_rgb(0xFF, 0x9F, 0x0A), // orange — Images
+    Color32::from_rgb(0xAF, 0x52, 0xDE), // purple — Videos
+    Color32::from_rgb(0xFF, 0x2D, 0x55), // pink   — Music
+    Color32::from_rgb(0x0A, 0x84, 0xFF), // blue   — Documents
+    Color32::from_rgb(0xA2, 0x84, 0x5E), // brown  — Archives
+    Color32::from_rgb(0x34, 0xC7, 0x59), // green  — Apps
+];
 
 /// Six warm-leaning hues for shelves, sources and clean-up cards in the Vivid look.
 /// Copper leads; the rest are chosen to sit comfortably next to it.
@@ -52,7 +107,37 @@ const HUES: [Color32; 6] = [
 
 impl Palette {
     pub fn new(look: Look, dark: bool) -> Self {
-        let (bg, sidebar, surface, border, border_strong, text, muted, faint, hover, selected, thumb_bg) = if dark {
+        let (bg, sidebar, surface, border, border_strong, text, muted, faint, hover, selected, thumb_bg) = if look == Look::Normal && dark {
+            // Neutral macOS dark greys.
+            (
+                rgb(0x1E, 0x1E, 0x1E), // bg
+                rgb(0x28, 0x28, 0x28), // sidebar
+                rgb(0x2A, 0x2A, 0x2C), // surface
+                rgb(0x3A, 0x3A, 0x3C), // border
+                rgb(0x54, 0x54, 0x58), // border_strong
+                rgb(0xF2, 0xF2, 0xF7), // text
+                rgb(0xA8, 0xA8, 0xAE), // muted
+                rgb(0x76, 0x76, 0x7C), // faint
+                rgb(0x32, 0x32, 0x35), // hover
+                rgb(0x3D, 0x3D, 0x41), // selected
+                rgb(0x30, 0x30, 0x33), // thumb_bg
+            )
+        } else if look == Look::Normal {
+            // Neutral macOS light: plain white with soft greys.
+            (
+                rgb(0xFF, 0xFF, 0xFF), // bg
+                rgb(0xF5, 0xF5, 0xF7), // sidebar
+                rgb(0xFF, 0xFF, 0xFF), // surface
+                rgb(0xE5, 0xE5, 0xEA), // border
+                rgb(0xD1, 0xD1, 0xD6), // border_strong
+                rgb(0x1D, 0x1D, 0x1F), // text
+                rgb(0x6E, 0x6E, 0x73), // muted
+                rgb(0xA1, 0xA1, 0xA6), // faint
+                rgb(0xF0, 0xF0, 0xF3), // hover
+                rgb(0xE6, 0xE6, 0xEB), // selected
+                rgb(0xF5, 0xF5, 0xF7), // thumb_bg
+            )
+        } else if dark {
             // Charcoal-brown, like the icon's background (#3B2219 → #140B08).
             (
                 rgb(0x17, 0x10, 0x0D), // bg
@@ -83,8 +168,15 @@ impl Palette {
                 rgb(0xF8, 0xF2, 0xEE), // thumb_bg
             )
         };
+        let blue = if dark { rgb(0x0A, 0x84, 0xFF) } else { rgb(0x00, 0x7A, 0xFF) };
         let accent = match look {
             Look::Vivid => COPPER,
+            Look::Normal => blue,
+            Look::Mono => text,
+        };
+        let folder = match look {
+            Look::Vivid => COPPER,
+            Look::Normal => rgb(0x3B, 0x9E, 0xF5), // Finder folder blue
             Look::Mono => text,
         };
         Self {
@@ -102,34 +194,50 @@ impl Palette {
             selected,
             thumb_bg,
             accent,
+            folder,
             on_accent: if look == Look::Mono { bg } else { Color32::WHITE },
             green: rgb(0x2E, 0x9C, 0x6A),
             red: rgb(0xD6, 0x3E, 0x3A),
-            shadow: if dark { Color32::from_black_alpha(110) } else { Color32::from_rgba_unmultiplied(0x5A, 0x2A, 0x14, 22) },
+            shadow: if dark {
+                Color32::from_black_alpha(110)
+            } else if look == Look::Normal {
+                Color32::from_black_alpha(18)
+            } else {
+                Color32::from_rgba_unmultiplied(0x5A, 0x2A, 0x14, 22)
+            },
         }
+    }
+
+    /// Whether this look uses colour for icons and cards (Vivid and Normal) or not (Mono).
+    pub fn colorful(&self) -> bool {
+        self.look != Look::Mono
+    }
+
+    fn hues(&self) -> &'static [Color32; 6] {
+        if self.look == Look::Normal { &SYS_HUES } else { &HUES }
     }
 
     /// Strong colour for slot `i` (icons, dots).
     pub fn hue(&self, i: usize) -> Color32 {
         match self.look {
-            Look::Vivid => HUES[i % HUES.len()],
             Look::Mono => self.muted,
+            _ => self.hues()[i % 6],
         }
     }
 
     /// Soft background tint for slot `i`.
     pub fn tint(&self, i: usize) -> Color32 {
         match self.look {
-            Look::Vivid => mix(self.surface, HUES[i % HUES.len()], if self.dark { 0.16 } else { 0.09 }),
             Look::Mono => self.thumb_bg,
+            _ => mix(self.surface, self.hues()[i % 6], if self.dark { 0.16 } else { 0.09 }),
         }
     }
 
     /// Border for a tinted card.
     pub fn tint_border(&self, i: usize) -> Color32 {
         match self.look {
-            Look::Vivid => mix(self.surface, HUES[i % HUES.len()], if self.dark { 0.30 } else { 0.22 }),
             Look::Mono => self.border,
+            _ => mix(self.surface, self.hues()[i % 6], if self.dark { 0.30 } else { 0.22 }),
         }
     }
 
@@ -259,6 +367,21 @@ pub fn apply_visuals(ctx: &egui::Context, p: &Palette) {
         s.spacing.button_padding = egui::vec2(10.0, 5.0);
         s.spacing.menu_margin = egui::Margin::same(6);
         s.interaction.selectable_labels = false;
+        // macOS-style overlay scrollbars: no reserved lane, hidden until you
+        // scroll or hover, and a soft tint instead of a bright white bar.
+        let mut sc = egui::style::ScrollStyle::floating();
+        sc.bar_width = 7.0;
+        sc.floating_width = 3.0;
+        sc.floating_allocated_width = 0.0;
+        sc.bar_outer_margin = 2.0;
+        sc.foreground_color = true;
+        sc.dormant_background_opacity = 0.0;
+        sc.active_background_opacity = 0.0;
+        sc.interact_background_opacity = 0.08;
+        sc.dormant_handle_opacity = 0.0;
+        sc.active_handle_opacity = 0.22;
+        sc.interact_handle_opacity = 0.4;
+        s.spacing.scroll = sc;
         s.text_styles.insert(egui::TextStyle::Body, f(13.5));
         s.text_styles.insert(egui::TextStyle::Button, f(13.5));
         s.text_styles.insert(egui::TextStyle::Small, f(11.5));

@@ -9,7 +9,7 @@ use super::cards::*;
 use super::widgets::*;
 use crate::app::{HinderApp, View};
 use crate::model::{Kind, fmt_count, fmt_size};
-use crate::theme::{Look, f, fb, fm};
+use crate::theme::{f, fb, fm};
 
 const GAP: f32 = 18.0;
 
@@ -80,7 +80,7 @@ pub fn show(app: &mut HinderApp, ui: &mut Ui, acts: &mut Vec<Act>) {
             ui.label(RichText::new("Clean Up").font(fm(20.0)).color(p.text));
             ui.add_space(4.0);
             if total > 0 {
-                let (fill, col) = if p.look == Look::Vivid { (p.green, egui::Color32::WHITE) } else { (p.text, p.bg) };
+                let (fill, col) = if p.colorful() { (p.green, egui::Color32::WHITE) } else { (p.text, p.bg) };
                 pill(ui, &format!("Free up to {}", fmt_size(total)), fill, col);
             }
             if see_all(ui, &p) {

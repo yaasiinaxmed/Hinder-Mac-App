@@ -8,7 +8,7 @@ use super::widgets::*;
 use crate::app::HinderApp;
 use crate::dupes;
 use crate::model::{fmt_count, fmt_size, plural, tildify};
-use crate::theme::{Look, f, fb, fm, mix};
+use crate::theme::{f, fb, fm, mix};
 
 const TILE: egui::Vec2 = egui::Vec2::new(176.0, 128.0);
 
@@ -38,10 +38,10 @@ pub fn show(app: &mut HinderApp, ui: &mut Ui, acts: &mut Vec<Act>) {
     }
 
     // ---- banner
-    let banner_fill = if p.look == Look::Vivid { mix(p.surface, p.green, if p.dark { 0.18 } else { 0.10 }) } else { p.thumb_bg };
+    let banner_fill = if p.colorful() { mix(p.surface, p.green, if p.dark { 0.18 } else { 0.10 }) } else { p.thumb_bg };
     egui::Frame::new().fill(banner_fill).corner_radius(CornerRadius::same(14)).inner_margin(egui::Margin::symmetric(18, 14)).show(ui, |ui| {
         ui.horizontal(|ui| {
-            ui.label(RichText::new(ph::SPARKLE).font(f(20.0)).color(if p.look == Look::Vivid { p.green } else { p.text }));
+            ui.label(RichText::new(ph::SPARKLE).font(f(20.0)).color(if p.colorful() { p.green } else { p.text }));
             ui.vertical(|ui| {
                 ui.label(RichText::new(format!("Free up {}", fmt_size(total))).font(fm(16.0)).color(p.text));
                 ui.label(RichText::new(format!("{} can go to the Trash. Click a copy to keep that one instead.", plural(extra, "extra copy", "extra copies"))).color(p.muted).font(f(12.5)));

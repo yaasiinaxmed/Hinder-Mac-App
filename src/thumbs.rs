@@ -8,7 +8,8 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 use std::sync::{Arc, Condvar, Mutex, mpsc};
 
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
@@ -153,27 +154,81 @@ fn cache_key(path: &Path) -> String {
     format!("{:016x}", h.finish())
 }
 
+/// Draws an app's real icon (the one Finder shows, including layered macOS 26
+/// icons and Assets.car-only apps) into a PNG, using AppKit from JavaScript for
+/// Automation. Quick Look returns nothing useful for `.app` bundles.
+const APP_ICON_JXA: &str = r#"
+ObjC.import('AppKit');
+function run(argv) {
+  var size = parseInt(argv[2]);
+  var img = $.NSWorkspace.sharedWorkspace.iconForFile(argv[0]);
+  var rep = $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(null, size, size, 8, 4, true, false, $.NSDeviceRGBColorSpace, 0, 0);
+  $.NSGraphicsContext.saveGraphicsState;
+  $.NSGraphicsContext.setCurrentContext($.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep));
+  img.drawInRectFromRectOperationFraction($.NSMakeRect(0, 0, size, size), $.NSZeroRect, $.NSCompositingOperationSourceOver, 1.0);
+  $.NSGraphicsContext.restoreGraphicsState;
+  var png = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
+  return png.writeToFileAtomically(argv[1], true) ? 'ok' : 'fail';
+}
+"#;
+
+/// Runs a helper and waits at most `limit`. Quick Look in particular can hang
+/// forever on some files (source code, zips, apps); without a limit every worker
+/// ends up stuck and no more thumbnails load.
+fn run_with_timeout(mut cmd: Command, limit: Duration) -> bool {
+    let Ok(mut child) = cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() else { return false };
+    let start = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.success(),
+            Ok(None) if start.elapsed() < limit => std::thread::sleep(Duration::from_millis(40)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return false;
+            }
+        }
+    }
+}
+
+fn app_icon(path: &Path, out: &Path) -> bool {
+    let mut cmd = Command::new("/usr/bin/osascript");
+    cmd.args(["-l", "JavaScript", "-e", APP_ICON_JXA]).arg(path).arg(out).arg(THUMB_PX.to_string());
+    run_with_timeout(cmd, Duration::from_secs(6)) && out.exists()
+}
+
 fn make_thumb(path: &Path, dir: &Path) -> Option<ColorImage> {
     let cached = dir.join(format!("{}.png", cache_key(path)));
-    if !cached.exists() {
-        let tmp = dir.join(format!("tmp-{:?}", std::thread::current().id()).replace(['(', ')'], ""));
-        let _ = std::fs::create_dir_all(&tmp);
-        let status = Command::new("/usr/bin/qlmanage")
-            .args(["-t", "-s", &THUMB_PX.to_string(), "-o"])
-            .arg(&tmp)
-            .arg(path)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .ok()?;
-        if !status.success() {
-            return None;
+    let is_app = path.extension().is_some_and(|e| e == "app");
+    if !cached.exists() && is_app {
+        let tmp = dir.join(format!("app-{}.png", cache_key(path)));
+        if app_icon(path, &tmp) {
+            std::fs::rename(&tmp, &cached).ok()?;
         }
+    }
+    if !cached.exists() && !is_app {
+        // A folder per request, so a late or killed helper can never leave its
+        // picture where another file's thumbnail is expected.
+        let tmp = dir.join(format!("tmp-{}", cache_key(path)));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = std::fs::create_dir_all(&tmp);
+        let mut cmd = Command::new("/usr/bin/qlmanage");
+        cmd.args(["-t", "-s", &THUMB_PX.to_string(), "-o"]).arg(&tmp).arg(path);
+        let ok = run_with_timeout(cmd, Duration::from_secs(8));
         // qlmanage writes "<file name>.png" into the output folder.
-        let produced = std::fs::read_dir(&tmp).ok()?.flatten().find(|e| e.path().extension().is_some_and(|x| x == "png"))?;
-        std::fs::rename(produced.path(), &cached).ok()?;
+        let produced = ok
+            .then(|| std::fs::read_dir(&tmp).ok()?.flatten().find(|e| e.path().extension().is_some_and(|x| x == "png")))
+            .flatten();
+        if let Some(produced) = produced {
+            let _ = std::fs::rename(produced.path(), &cached);
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+    if !cached.exists() {
+        return None;
     }
     let img = image::open(&cached).ok()?.into_rgba8();
     let size = [img.width() as usize, img.height() as usize];
     Some(ColorImage::from_rgba_unmultiplied(size, img.as_raw()))
 }
+
