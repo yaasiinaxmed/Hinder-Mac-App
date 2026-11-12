@@ -5,7 +5,13 @@
 #   ./scripts/bundle.sh            # universal build
 #   ./scripts/bundle.sh --native   # only this Mac's architecture (faster)
 #
-# The app is ad-hoc signed, not notarized. See README → "Opening the app".
+# Signing and notarization (all optional; without them the app is ad-hoc signed
+# and macOS shows an "unverified developer" warning on first launch):
+#   SIGN_IDENTITY   "Developer ID Application: …" (default: the first one in the
+#                   keychain, if any). "-" forces ad-hoc signing.
+#   Notarization credentials, one of:
+#     NOTARY_PROFILE                              a `notarytool store-credentials` profile
+#     APPLE_ID + APPLE_APP_PASSWORD + APPLE_TEAM_ID   Apple ID with an app-specific password
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -76,8 +82,54 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-echo "==> Signing (ad-hoc)"
-codesign --force --deep --sign - "$APP"
+if [[ -z "${SIGN_IDENTITY:-}" ]]; then
+  SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Developer ID Application/{print $2; exit}')"
+  SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+fi
+if [[ "$SIGN_IDENTITY" == "-" ]]; then
+  echo "==> Signing (ad-hoc: users will see an 'unverified developer' warning)"
+  codesign --force --deep --sign - "$APP"
+else
+  echo "==> Signing as $SIGN_IDENTITY"
+  # Hardened runtime + secure timestamp: both required for notarization.
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
+  codesign --verify --strict --verbose=1 "$APP"
+fi
+
+NOTARY=()
+if [[ "$SIGN_IDENTITY" != "-" ]]; then
+  if [[ -n "${NOTARY_PROFILE:-}" ]]; then
+    NOTARY=(--keychain-profile "$NOTARY_PROFILE")
+  elif [[ -n "${APPLE_ID:-}" && -n "${APPLE_APP_PASSWORD:-}" && -n "${APPLE_TEAM_ID:-}" ]]; then
+    NOTARY=(--apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID")
+  fi
+fi
+
+# Sends a file to Apple's notary service and waits; fails loudly with Apple's log.
+notarize() {
+  local file="$1" out id status
+  echo "    notarizing $(basename "$file") (usually 1–5 minutes)…"
+  out="$(xcrun notarytool submit "$file" "${NOTARY[@]}" --wait --timeout 30m --output-format json)" || true
+  id="$(/usr/bin/python3 -c 'import json,sys; print(json.loads(sys.stdin.read() or "{}").get("id",""))' <<<"$out")"
+  status="$(/usr/bin/python3 -c 'import json,sys; print(json.loads(sys.stdin.read() or "{}").get("status",""))' <<<"$out")"
+  if [[ "$status" != "Accepted" ]]; then
+    echo "    notarization failed (status: ${status:-none})"
+    echo "$out"
+    [[ -n "$id" ]] && xcrun notarytool log "$id" "${NOTARY[@]}" || true
+    exit 1
+  fi
+}
+
+if [[ ${#NOTARY[@]} -gt 0 ]]; then
+  echo "==> Notarizing the app"
+  NZIP="$(mktemp -d)/$APP_NAME.zip"
+  ditto -c -k --keepParent "$APP" "$NZIP"
+  notarize "$NZIP"
+  xcrun stapler staple "$APP" >/dev/null
+  echo "    stapled the ticket to $APP_NAME.app"
+elif [[ "$SIGN_IDENTITY" != "-" ]]; then
+  echo "    (no notarization credentials: signed, but not notarized)"
+fi
 
 echo "==> Packaging"
 ZIP="$DIST/$APP_NAME-$VERSION-macos-$ARCH.zip"
@@ -111,6 +163,15 @@ else
   cp -R "$APP" "$STAGE/"
   ln -s /Applications "$STAGE/Applications"
   hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+fi
+
+if [[ "$SIGN_IDENTITY" != "-" ]]; then
+  codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
+  if [[ ${#NOTARY[@]} -gt 0 ]]; then
+    echo "==> Notarizing the .dmg"
+    notarize "$DMG"
+    xcrun stapler staple "$DMG" >/dev/null
+  fi
 fi
 
 echo "==> Done"

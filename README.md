@@ -37,12 +37,9 @@
 
 Get the latest `.dmg` from the **[Releases page](https://github.com/yaasiinaxmed/Hinder-Mac-App/releases/latest)**. It's a universal app for Apple silicon and Intel Macs.
 
-### Opening the app
+### Signed and notarized
 
-Hinder isn't notarized by Apple yet, so the first time you open it macOS will say it can't check the app. Either:
-
-- right-click **Hinder.app**, choose **Open**, then **Open** again, or
-- run `xattr -dr com.apple.quarantine /Applications/Hinder.app` in Terminal.
+Releases from v0.2.1 on are signed with a Developer ID and notarized by Apple, so they open with a double-click and no warning. If you build Hinder yourself without a Developer ID, macOS will ask the first time: open **System Settings → Privacy & Security** and click **Open Anyway**.
 
 ## Keyboard shortcuts
 

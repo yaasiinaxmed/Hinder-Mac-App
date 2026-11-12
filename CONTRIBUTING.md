@@ -73,6 +73,10 @@ Hinder's promises to users are part of the design. Changes should keep them:
 
 Maintainers don't tag releases by hand. A release-please bot keeps a "chore(main): release x.y.z" pull request open. Merging it creates the tag and the GitHub Release, and CI attaches the universal `.dmg` and `.zip`.
 
+## Signing (maintainers)
+
+`scripts/bundle.sh` signs with the first "Developer ID Application" certificate in your keychain and notarizes when credentials are set, e.g. `NOTARY_PROFILE=hinder-notary ./scripts/bundle.sh` (create the profile once with `xcrun notarytool store-credentials`). Without a certificate it falls back to ad-hoc signing. The release workflow does the same using the `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_APP_PASSWORD` and `APPLE_TEAM_ID` repository secrets.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
