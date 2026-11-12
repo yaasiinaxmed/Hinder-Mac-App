@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/yaasiinaxmed/Hinder-Mac-App/compare/v0.1.0...v0.2.0) (2026-11-12)
+
+
+### Features
+
+* branded drag-to-install window for the DMG ([4c2754a](https://github.com/yaasiinaxmed/Hinder-Mac-App/commit/4c2754adb2c32e55bc5bdfd95841ef3c5fdd7afe))
+* folders on every page, Normal look with light/dark switch, real app icons ([8b13abd](https://github.com/yaasiinaxmed/Hinder-Mac-App/commit/8b13abdc3ad07c0a02a087d098a1558d8dce10b1))
+
 ## 0.1.0 (2026-11-12)
 
 
