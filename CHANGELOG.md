@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/yaasiinaxmed/Hinder-Mac-App/compare/v0.2.0...v0.2.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* show folder counts for Library shelves in the sidebar ([4e78bce](https://github.com/yaasiinaxmed/Hinder-Mac-App/commit/4e78bce4879d9b10bea3c1c9b53574441c2205cd))
+
 ## [0.2.0](https://github.com/yaasiinaxmed/Hinder-Mac-App/compare/v0.1.0...v0.2.0) (2026-11-12)
 
 
