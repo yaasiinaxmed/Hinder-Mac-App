@@ -1,6 +1,6 @@
 [package]
 name = "hinder"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Hinder: an open-source, privacy-first Finder companion for macOS, written in Rust."
