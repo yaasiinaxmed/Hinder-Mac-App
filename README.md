@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.svg" width="128" alt="Hinder icon">
+  <img src="assets/icon.png" width="160" alt="Hinder app icon: a smiling copper folder">
 </p>
 
 <h1 align="center">Hinder</h1>
@@ -14,6 +14,10 @@
   <a href="https://github.com/yaasiinaxmed/Hinder-Mac-App/releases/latest"><img src="https://img.shields.io/github/v/release/yaasiinaxmed/Hinder-Mac-App?label=download" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/home.png" width="900" alt="Hinder's Home screen: a sidebar with Library, smart folders and Locations, Library cards for Images, Videos, Music, Documents, Archives and Apps, and a Clean Up card offering to free 290 MB of duplicates">
 </p>
 
 ---
