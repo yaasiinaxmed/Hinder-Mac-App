@@ -404,23 +404,26 @@ fn search_box(app: &mut HinderApp, ui: &mut Ui, now: f64) {
 
 fn look_toggle(app: &mut HinderApp, ui: &mut Ui) {
     let p = app.p;
-    Frame::new().fill(p.thumb_bg).corner_radius(CornerRadius::same(10)).inner_margin(Margin::same(3)).show(ui, |ui| {
-        ui.spacing_mut().item_spacing.x = 2.0;
-        // right-to-left parent layout: add Mono first so Vivid sits on the left
-        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-            for (look, icon, tip) in [(Look::Vivid, ph::PALETTE, "Vivid look  ⌃⌘T"), (Look::Mono, ph::CIRCLE_HALF, "Mono look  ⌃⌘T")] {
-                let active = app.prefs.look == look;
-                let (r, resp) = ui.allocate_exact_size(vec2(30.0, 26.0), Sense::click());
-                if active {
-                    ui.painter().rect(r, CornerRadius::same(7), p.surface, Stroke::new(1.0, p.border), StrokeKind::Inside);
-                }
-                ui.painter().text(r.center(), Align2::CENTER_CENTER, icon, f(15.0), if active { p.text } else { p.faint });
-                if resp.on_hover_text(tip).clicked() {
-                    app.prefs.look = look;
-                }
-            }
-        });
-    });
+    // A fixed-size pill (two 30×26 segments + 3px padding). Painting it by hand
+    // keeps the background from stretching across the free space in the
+    // right-to-left top-bar layout.
+    const SEG: egui::Vec2 = vec2(30.0, 26.0);
+    const PAD: f32 = 3.0;
+    let (pill, _) = ui.allocate_exact_size(vec2(SEG.x * 2.0 + PAD * 2.0, SEG.y + PAD * 2.0), Sense::hover());
+    ui.painter().rect_filled(pill, CornerRadius::same(10), p.thumb_bg);
+    for (i, (look, icon, tip)) in [(Look::Vivid, ph::PALETTE, "Vivid look  ⌃⌘T"), (Look::Mono, ph::CIRCLE_HALF, "Mono look  ⌃⌘T")].into_iter().enumerate() {
+        let r = egui::Rect::from_min_size(pill.min + vec2(PAD + SEG.x * i as f32, PAD), SEG);
+        let resp = ui.interact(r, Id::new(("look-toggle", i)), Sense::click());
+        let active = app.prefs.look == look;
+        if active {
+            ui.painter().rect(r, CornerRadius::same(7), p.surface, Stroke::new(1.0, p.border), StrokeKind::Inside);
+        }
+        let color = if active || resp.hovered() { p.text } else { p.faint };
+        ui.painter().text(r.center(), Align2::CENTER_CENTER, icon, f(15.0), color);
+        if resp.on_hover_text(tip).clicked() {
+            app.prefs.look = look;
+        }
+    }
 }
 
 // ------------------------------------------------------------------ inspector
