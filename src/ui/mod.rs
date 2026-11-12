@@ -205,7 +205,23 @@ fn sidebar(app: &mut HinderApp, ctx: &egui::Context, acts: &mut Vec<Act>) {
                 for k in Kind::SHELVES {
                     let n = app.stats.get(&k).map(|s| s.0).unwrap_or(0);
                     let col = icon_c(Palette::kind_slot(k));
-                    if nav_item(ui, &p, k.icon(), col, k.label(), Trail::Muted(fmt_count(n)), *app.base_view() == View::Kind(k)).clicked() {
+                    // In folder mode the shelf opens on folders, so count those (with the
+                    // file total on hover); otherwise count files.
+                    let folders = (app.prefs.kind_folders && HinderApp::can_browse(&View::Kind(k))).then(|| app.shelf_folder_count(k)).filter(|&c| c > 0);
+                    let trail = match folders {
+                        Some(c) => Trail::Muted(format!("{} {}", ph::FOLDER_SIMPLE, fmt_count(c))),
+                        None => Trail::Muted(fmt_count(n)),
+                    };
+                    let r = nav_item(ui, &p, k.icon(), col, k.label(), trail, *app.base_view() == View::Kind(k));
+                    let r = match folders {
+                        Some(c) => r.on_hover_text(format!(
+                            "{} in {}",
+                            crate::model::plural(n, &k.label().to_lowercase(), &k.label().to_lowercase()),
+                            crate::model::plural(c, "folder", "folders")
+                        )),
+                        None => r,
+                    };
+                    if r.clicked() {
                         acts.push(Act::Go(View::Kind(k)));
                     }
                 }

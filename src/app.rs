@@ -114,6 +114,8 @@ pub struct HinderApp {
     pub lib: Library,
     pub generation: u64,
     folder_cache: Option<(FolderKey, Vec<FolderSummary>)>,
+    /// Per Library shelf: how many folders its first screen shows (for the sidebar), by scan generation.
+    shelf_folders: Option<(u64, HashMap<Kind, usize>)>,
     pub scanning: bool,
     pub scan_progress: usize,
     scan_rx: Receiver<ScanMsg>,
@@ -174,6 +176,7 @@ impl HinderApp {
             lib: Library::default(),
             generation: 0,
             folder_cache: None,
+            shelf_folders: None,
             scanning: true,
             scan_progress: 0,
             scan_rx: rx,
@@ -386,6 +389,28 @@ impl HinderApp {
             }
         }
         v
+    }
+
+    /// How many folders a Library shelf's first screen shows, e.g. 8 for Documents.
+    /// One pass over the index per scan, shared by every shelf.
+    pub fn shelf_folder_count(&mut self, kind: Kind) -> usize {
+        if self.shelf_folders.as_ref().is_none_or(|(g, _)| *g != self.generation) {
+            let tops = Self::top_parents();
+            let mut seen: HashSet<(Kind, PathBuf)> = HashSet::new();
+            for f in &self.lib.files {
+                let Some((top, rest)) = tops.iter().find_map(|t| f.path.strip_prefix(t).ok().map(|r| (t, r))) else { continue };
+                let mut comps = rest.components();
+                if let (Some(first), Some(_)) = (comps.next(), comps.next()) {
+                    seen.insert((f.kind, top.join(first)));
+                }
+            }
+            let mut counts: HashMap<Kind, usize> = HashMap::new();
+            for (k, _) in seen {
+                *counts.entry(k).or_default() += 1;
+            }
+            self.shelf_folders = Some((self.generation, counts));
+        }
+        self.shelf_folders.as_ref().and_then(|(_, m)| m.get(&kind).copied()).unwrap_or(0)
     }
 
     /// Whether a file belongs on a page, ignoring which folder is open.
