@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/yaasiinaxmed/Hinder-Mac-App/compare/v0.2.1...v0.3.0) (2026-11-12)
+
+
+### Features
+
+* native macOS menu bar with File, View, Go, Window and Help menus ([5442a2f](https://github.com/yaasiinaxmed/Hinder-Mac-App/commit/5442a2fb448c09e502f8f51f2d78fc52f5c82ab2))
+
 ## [0.2.1](https://github.com/yaasiinaxmed/Hinder-Mac-App/compare/v0.2.0...v0.2.1) (2026-11-12)
 
 
