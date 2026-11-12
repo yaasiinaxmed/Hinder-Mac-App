@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Copper folder app icon with a smiling face on a dark background">
+<defs>
+<clipPath id="squircle">
+<rect width="512" height="512" rx="114"/>
+</clipPath>
+<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+<feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000000" flood-opacity="0.35"/>
+</filter>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3B2219"/>
+<stop offset="1" stop-color="#140B08"/>
+</linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.62" r="0.5">
+<stop offset="0" stop-color="#E8692F" stop-opacity="0.45"/>
+<stop offset="1" stop-color="#E8692F" stop-opacity="0"/>
+</radialGradient>
+<linearGradient id="back" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#C2522F"/>
+<stop offset="1" stop-color="#8E3219"/>
+</linearGradient>
+<linearGradient id="front" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#F0A274"/>
+<stop offset="1" stop-color="#CE4A26"/>
+</linearGradient>
+<linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.45"/>
+<stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+</linearGradient>
+<linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/>
+</linearGradient>
+</defs>
+<!-- macOS icon grid: 824×824 shape centred on a 1024 canvas (100 px margin) -->
+<g transform="translate(100 100) scale(1.609375)" filter="url(#shadow)">
+<g clip-path="url(#squircle)">
+<rect width="512" height="512" fill="url(#bg)"/>
+<rect width="512" height="512" fill="url(#glow)"/>
+<path d="M120 170 q0 -20 20 -20 h70 q14 0 22 11 l12 16 h128 q20 0 20 20 v172 q0 20 -20 20 h-252 q-20 0 -20 -20 z" fill="url(#back)"/>
+<rect x="150" y="186" width="212" height="120" rx="10" fill="#F6E3D3" transform="rotate(-4 256 246)"/>
+<rect x="112" y="216" width="288" height="176" rx="28" fill="url(#front)"/>
+<rect x="112" y="216" width="288" height="70" rx="28" fill="url(#shine)"/>
+<rect x="113" y="217" width="286" height="174" rx="27" fill="none" stroke="#FFD2B3" stroke-opacity="0.55" stroke-width="2"/>
+<circle cx="138" cy="242" r="5" fill="#7A2A14" fill-opacity="0.55"/>
+<circle cx="374" cy="242" r="5" fill="#7A2A14" fill-opacity="0.55"/>
+<circle cx="138" cy="366" r="5" fill="#7A2A14" fill-opacity="0.55"/>
+<circle cx="374" cy="366" r="5" fill="#7A2A14" fill-opacity="0.55"/>
+<g stroke="#4A170B" stroke-width="14" stroke-linecap="round" fill="none">
+<line x1="282" y1="266" x2="282" y2="292"/>
+<line x1="316" y1="266" x2="316" y2="292"/>
+<path d="M196 330 c10 -16 22 -16 30 -3 c10 15 30 15 46 -6"/>
+</g>
+</g>
+<rect x="0.75" y="0.75" width="510.5" height="510.5" rx="113.25" fill="none" stroke="url(#rim)" stroke-width="1.5"/>
+</g>
+</svg>

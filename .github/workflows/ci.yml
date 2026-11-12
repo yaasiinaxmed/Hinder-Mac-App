@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Build & test (macOS)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all -- --check
+        continue-on-error: true
+
+      - name: Clippy
+        run: cargo clippy --all-targets
+        continue-on-error: true
+
+      - name: Test
+        run: cargo test
+
+      - name: Build app bundle (native)
+        run: ./scripts/bundle.sh --native
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hinder-dev-build
+          path: dist/*.zip
+          retention-days: 7
