@@ -7,6 +7,7 @@ mod app;
 mod brand;
 mod cleanup;
 mod dupes;
+mod menu;
 mod model;
 mod query;
 mod scanner;

@@ -152,6 +152,7 @@ pub struct HinderApp {
     pub toast: Option<(String, f64)>,
     pub thumbs: Thumbs,
     pub logo: Option<egui::TextureHandle>,
+    menu: Option<crate::menu::MenuBar>,
     pub p: Palette,
     pub focus_search: bool,
     pub grid_cols: usize,
@@ -210,6 +211,10 @@ impl HinderApp {
             toast: None,
             thumbs: Thumbs::new(&cc.egui_ctx),
             logo: crate::brand::logo_texture(&cc.egui_ctx, 84),
+            menu: {
+                let icon = crate::brand::window_icon();
+                Some(crate::menu::MenuBar::install(&cc.egui_ctx, icon.rgba, icon.width))
+            },
             p,
             focus_search: false,
             grid_cols: 4,
@@ -651,6 +656,66 @@ impl HinderApp {
 
     // ---------------------------------------------------------------- input
 
+    /// Runs a menu bar command (the same actions as the keyboard shortcuts).
+    fn run_cmd(&mut self, cmd: crate::menu::Cmd, ctx: &egui::Context) {
+        use crate::menu::{Cmd, REPO_URL};
+        let open_url = |url: &str| {
+            let _ = std::process::Command::new("/usr/bin/open").arg(url).spawn();
+        };
+        match cmd {
+            Cmd::CheckForUpdates => open_url(&format!("{REPO_URL}/releases/latest")),
+            Cmd::Open => {
+                if let Some(s) = &self.selected {
+                    actions::open(s);
+                }
+            }
+            Cmd::QuickLook => {
+                if let Some(s) = &self.selected {
+                    actions::quick_look(std::slice::from_ref(s));
+                }
+            }
+            Cmd::ShowInFinder => {
+                if let Some(s) = &self.selected {
+                    actions::reveal_in_finder(s);
+                }
+            }
+            Cmd::CopyPath => {
+                if let Some(s) = &self.selected {
+                    ctx.copy_text(s.display().to_string());
+                }
+            }
+            Cmd::MoveToTrash => {
+                if let Some(s) = self.selected.clone() {
+                    self.trash_requested = Some(vec![s]);
+                }
+            }
+            Cmd::OpenTrash => actions::open_trash(),
+            Cmd::Find => self.focus_search = true,
+            Cmd::Grid => self.prefs.grid = true,
+            Cmd::List => self.prefs.grid = false,
+            Cmd::Bigger => self.prefs.zoom = (self.prefs.zoom + 0.15).min(2.0),
+            Cmd::Smaller => self.prefs.zoom = (self.prefs.zoom - 0.15).max(0.6),
+            Cmd::Sidebar => self.prefs.sidebar = !self.prefs.sidebar,
+            Cmd::Inspector => self.prefs.inspector = !self.prefs.inspector,
+            Cmd::Look(l) => self.prefs.look = l,
+            Cmd::NextLook => self.prefs.look = self.prefs.look.next(),
+            Cmd::Appearance(a) => self.prefs.appearance = a,
+            Cmd::Rescan => self.rescan_requested = true,
+            Cmd::Back => self.back_requested = true,
+            Cmd::Home => self.go(View::Home),
+            Cmd::Recents => self.go(View::Recents),
+            Cmd::Kind(k) => self.go(View::Kind(k)),
+            Cmd::LargeFiles => self.go(View::LargeFiles),
+            Cmd::Screenshots => self.go(View::Screenshots),
+            Cmd::Duplicates => self.go(View::Duplicates),
+            Cmd::CleanUp => self.go(View::CleanUp),
+            Cmd::Sources => self.go(View::Sources),
+            Cmd::Folder(name) => self.go(View::Folder(crate::model::home_dir().join(name))),
+            Cmd::Website => open_url(REPO_URL),
+            Cmd::ReportIssue => open_url(&format!("{REPO_URL}/issues/new")),
+        }
+    }
+
     fn shortcuts(&mut self, ctx: &egui::Context) {
         let typing = ctx.wants_keyboard_input();
         let cmd = Modifiers::COMMAND;
@@ -788,6 +853,13 @@ impl eframe::App for HinderApp {
         }
 
         self.thumbs.begin_frame(ctx);
+        let cmds = self.menu.as_ref().map(|m| m.take()).unwrap_or_default();
+        for cmd in cmds {
+            self.run_cmd(cmd, ctx);
+        }
+        if let Some(m) = &self.menu {
+            m.sync(self.prefs.grid, self.prefs.sidebar, self.prefs.inspector, self.prefs.look, self.prefs.appearance);
+        }
         self.shortcuts(ctx);
         if std::mem::take(&mut self.rescan_requested) {
             self.rescan(ctx);

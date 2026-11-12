@@ -53,11 +53,16 @@ Releases from v0.2.1 on are signed with a Developer ID and notarized by Apple, s
 | Grid / List | <kbd>⌘1</kbd> / <kbd>⌘2</kbd> |
 | Bigger / smaller cards | <kbd>⌘+</kbd> / <kbd>⌘−</kbd> |
 | Inspector | <kbd>⌘I</kbd> |
-| Quick Look | <kbd>Space</kbd> |
+| Quick Look | <kbd>Space</kbd> or <kbd>⌘Y</kbd> |
+| Show in Finder | <kbd>⌥⌘R</kbd> |
+| Copy path | <kbd>⌥⌘C</kbd> |
+| Recents | <kbd>⇧⌘F</kbd> |
+| Downloads folder | <kbd>⌥⌘L</kbd> |
+| Show / hide sidebar | <kbd>⌥⌘S</kbd> |
 | Open | <kbd>↩</kbd> or <kbd>⌘O</kbd> |
 | Move to Trash | <kbd>⌘⌫</kbd> |
 | Back | <kbd>⌘[</kbd> |
-| Rescan | <kbd>⌘R</kbd> |
+| Refresh | <kbd>⌘R</kbd> |
 | Switch look | <kbd>⌃⌘T</kbd> |
 
 ## Build from source
