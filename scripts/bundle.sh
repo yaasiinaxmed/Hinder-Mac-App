@@ -89,19 +89,29 @@ ditto -c -k --keepParent "$APP" "$ZIP"
 # dmgbuild writes the layout directly (no Finder scripting). It's installed
 # into a private virtualenv under target/ the first time.
 VENV="target/dmgbuild-venv"
+PYTHON="${PYTHON:-python3}"
 if [[ ! -x "$VENV/bin/dmgbuild" ]]; then
-  echo "    installing dmgbuild into $VENV"
-  python3 -m venv "$VENV"
-  "$VENV/bin/pip" install --quiet "dmgbuild==1.6.5"
+  echo "    installing dmgbuild into $VENV (using $($PYTHON --version 2>&1))"
+  rm -rf "$VENV"
+  { "$PYTHON" -m venv "$VENV" && "$VENV/bin/pip" install --quiet "dmgbuild==1.6.5"; } || rm -rf "$VENV"
 fi
-BG="$(mktemp -d)/background.tiff"
-tiffutil -cathidpicheck assets/dmg/background.png assets/dmg/background@2x.png -out "$BG" >/dev/null
-"$VENV/bin/dmgbuild" \
-  -s scripts/dmg-settings.py \
-  -D app="$APP" \
-  -D background="$BG" \
-  -D volicon="$APP/Contents/Resources/AppIcon.icns" \
-  "$APP_NAME" "$DMG" >/dev/null
+if [[ -x "$VENV/bin/dmgbuild" ]]; then
+  BG="$(mktemp -d)/background.tiff"
+  tiffutil -cathidpicheck assets/dmg/background.png assets/dmg/background@2x.png -out "$BG" >/dev/null
+  "$VENV/bin/dmgbuild" \
+    -s scripts/dmg-settings.py \
+    -D app="$APP" \
+    -D background="$BG" \
+    -D volicon="$APP/Contents/Resources/AppIcon.icns" \
+    "$APP_NAME" "$DMG" >/dev/null
+else
+  # Never ship a release without a .dmg: fall back to a plain one.
+  echo "    dmgbuild unavailable: making a plain .dmg instead"
+  STAGE="$(mktemp -d)"
+  cp -R "$APP" "$STAGE/"
+  ln -s /Applications "$STAGE/Applications"
+  hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+fi
 
 echo "==> Done"
 ls -lh "$DIST"

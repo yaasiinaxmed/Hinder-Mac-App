@@ -6,10 +6,18 @@ name: Release
 #    Cargo.toml and writes CHANGELOG.md.
 # 3. Merge that PR -> a git tag + GitHub Release are created, and the job below
 #    builds the universal Hinder.app and attaches the .dmg and .zip.
+#
+# To rebuild the files of an existing release, open Actions → Release →
+# "Run workflow" and enter its tag (e.g. v0.2.0).
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to (re)build, e.g. v0.2.0"
+        required: true
 
 permissions:
   contents: write
@@ -17,6 +25,7 @@ permissions:
 
 jobs:
   release-please:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
@@ -30,12 +39,20 @@ jobs:
 
   build-macos:
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: ${{ always() && (needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch') }}
     runs-on: macos-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || needs.release-please.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+
+      # Build the tagged source, but package it with the latest scripts so an
+      # old release can be rebuilt after a packaging fix.
+      - name: Use the latest packaging scripts
+        run: git checkout ${{ github.sha }} -- scripts assets/dmg
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -43,10 +60,16 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Build universal Hinder.app
+        env:
+          PYTHON: python3.12
         run: ./scripts/bundle.sh
 
       - name: Upload to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ needs.release-please.outputs.tag_name }}" dist/*.dmg dist/*.zip --clobber
+        run: gh release upload "$TAG" dist/*.dmg dist/*.zip --clobber

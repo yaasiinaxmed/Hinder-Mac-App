@@ -36,7 +36,13 @@ jobs:
       - name: Test
         run: cargo test
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Build app bundle (native)
+        env:
+          PYTHON: python3.12
         run: ./scripts/bundle.sh --native
 
       - uses: actions/upload-artifact@v4
