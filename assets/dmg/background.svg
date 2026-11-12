@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="420" viewBox="0 0 660 420">
+  <!-- Hinder installer window background. Icons are placed by scripts/bundle.sh:
+       Hinder.app centred at (170, 215), Applications at (490, 215), 128 px icons. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2B1A13"/>
+      <stop offset="1" stop-color="#140B08"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.55" r="0.55">
+      <stop offset="0" stop-color="#E8692F" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#E8692F" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pad" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#F0A274" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#F0A274" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="arrow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F0A274" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#E8692F"/>
+    </linearGradient>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="11" cy="11" r="0.9" fill="#F6E3D3" fill-opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <rect width="660" height="420" fill="url(#bg)"/>
+  <rect width="660" height="420" fill="url(#dots)"/>
+  <rect width="660" height="420" fill="url(#glow)"/>
+
+  <!-- Header -->
+  <text x="330" y="62" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif" font-size="26" font-weight="700" fill="#F6E3D3" letter-spacing="-0.3">Install Hinder</text>
+  <text x="330" y="88" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif" font-size="13.5" fill="#C9A58E">Drag the app onto the Applications folder</text>
+
+  <!-- Soft pads under the two icons -->
+  <circle cx="170" cy="215" r="96" fill="url(#pad)"/>
+  <circle cx="490" cy="215" r="96" fill="url(#pad)"/>
+
+  <!-- Arrow -->
+  <path d="M258 222 C 300 188, 360 188, 401 215" fill="none" stroke="url(#arrow)" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 11"/>
+  <path d="M399 200 L 405 218 L 386 221" fill="none" stroke="#E8692F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Footer -->
+  <rect x="0" y="372" width="660" height="48" fill="#000000" fill-opacity="0.18"/>
+  <line x1="0" y1="372" x2="660" y2="372" stroke="#F6E3D3" stroke-opacity="0.06"/>
+  <text x="330" y="401" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif" font-size="11.5" fill="#9C7D6B">Open source  ·  Private by design  ·  Nothing leaves your Mac</text>
+</svg>
